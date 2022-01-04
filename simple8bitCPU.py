@@ -45,8 +45,8 @@ A = 0
 B = 1
 # ****************************************************
 
-import time
-
+from CPU import CPU
+from memory import memory_ROM, memory_RAM
 
 # ************ Memories **********************
 
@@ -113,92 +113,15 @@ ROM[15] = JMP(0)
 
 # ****************** CPU Emulator **************************
 
-# A in regs[0], B in regs[1]
-CPU_state = {
-    "regs": [0, 0],
-    "PC": 0,
-    "Z": 0
-}
+rom = memory_ROM()
+rom.loadBinaryFile("./Programs/SumTwoNumbers.bin")
+rom.printInBinary()
 
-# Return Op bites [7..5] from a instruction 
-def getOpCode(instruction):
-    return (instruction & 0b11100000)>>5
+ram = memory_RAM()
+ram.data[0] = 1
+ram.data[1] = 2
 
-# Return S value deppending of address mode 
-def getSValue(instruction, CPU_state):
-    # Register mode, register in [3], A is 0 and B is 1
-    if (instruction & 0b00010000) == 0:
-        return CPU_state['regs'][(instruction & 0b00001000)>>3]
-    # Inmediate mode, value [3..1]
-    else:
-        return (instruction & 0b00001110)>>1
+cpu = CPU(rom, ram, debug=True)
+cpu.run()
 
-
-# Return 0 if A reg in destination 
-# Return 1 if B reg in destination
-def getDReg(instruction):
-    return instruction & 0b00000001
-
-# Return D value
-def getDValue(instruction, CPU_state):
-    return CPU_state['regs'][instruction & 0b00000001]
-
-# Update Z flag depending of operationRes
-def updateZ(CPU_state, operationRes):
-    if operationRes == 0:
-        CPU_state['Z'] = 1
-    else:
-        CPU_state['Z'] = 0
-
-# For debug info
-opCodeNames = ["NOP", "LOAD", "STORE", "ADD", "SUB", "JMP", "BRZ", "AND"]
-def printDebugInfo(inst, CPU_state):
-    print(f"{opCodeNames[getOpCode(inst)]}, A {CPU_state['regs'][0]}, B {CPU_state['regs'][1]}, PC {CPU_state['PC']}, Z {CPU_state['Z']}")
-
-
-
-def runCPU(memory, CPU_state):
-    while(CPU_state['PC'] < len(ROM)):
-        # Fetch instruction 
-        instruction = ROM[CPU_state['PC']]
-
-        # Increment PC
-        CPU_state['PC'] += 1
-
-        # Decode and execute
-        op = getOpCode(instruction)
-
-        # LOAD
-        if op == 0b001:
-            CPU_state['regs'][getDReg(instruction)] = memory[getSValue(instruction, CPU_state)]
-        # STORE
-        elif op == 0b010:
-            memory[getSValue(instruction, CPU_state)] = getDValue(instruction, CPU_state)
-        # ADD
-        elif op == 0b011:
-            operationRes = CPU_state['regs'][0] + getSValue(instruction, CPU_state)
-            CPU_state['regs'][getDReg(instruction)] = operationRes
-            updateZ(CPU_state, operationRes)
-        # SUB 
-        elif op == 0b100:
-            operationRes = CPU_state['regs'][0] - getSValue(instruction, CPU_state)
-            CPU_state['regs'][getDReg(instruction)] = operationRes
-            updateZ(CPU_state, operationRes)
-        # JMP
-        elif op == 0b101:
-            CPU_state['PC'] = getSValue(instruction, CPU_state)
-        # BRZ
-        elif op == 0b110:
-            if CPU_state['Z'] == 1:
-                CPU_state['PC'] = getSValue(instruction, CPU_state)
-        # AND
-        elif op == 0b111:
-            operationRes = CPU_state['regs'][0] & getSValue(instruction, CPU_state)
-            CPU_state['regs'][getDReg(instruction)] = operationRes
-            updateZ(CPU_state, operationRes)
-        
-        printDebugInfo(instruction, CPU_state)
-        # time.sleep(0.1)
-
-runCPU(memory, CPU_state)
-print(memory)
+ram.printInDecimal()
